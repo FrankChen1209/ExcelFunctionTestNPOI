@@ -122,11 +122,23 @@ namespace ExcelFunctionTestNPOI
             string temp=" ";
             for(int i=0;i<100;i++)
             {
-                for(int j=0;j<100;j++)
+                if (array[i, 0] != -1)
                 {
-                    temp += array[i, j];
+                    for (int j = 0; j < 100; j++)
+                    {
+                        if (array[i, j] != -1)
+                        {
+                            temp += array[i, j];
+                            temp += "_";
+                        }
+                    }
+                    temp += "\r\n";
                 }
-                temp += "\r\n";
+            }
+            using (StreamWriter wr = new StreamWriter(new FileStream(@"D:/TestArray.txt", FileMode.Append)))  //把读取xls文件的数据写入myText.txt文件中
+            {
+                wr.Write(temp);
+                wr.Flush();
             }
             return temp;
         }
@@ -138,16 +150,16 @@ namespace ExcelFunctionTestNPOI
             StringBuilder testarray1 = new StringBuilder();
             string CheckTestMethod;//check the test method.
             int CheckDataLocation = 0 ;//make sure the useful data's location. When the CheckDataLocation==2, we have found the location.
-            int[,] IntensityData = new int[50, 50];
+            int[,] IntensityData = new int[100, 100];
 
             using (FileStream fs = File.OpenRead(@"D:/进近灯ICAO A2-1 嵌入式 白色 20170310113752.xlsx"))   //打开myxls.xls文件
             {
                 XSSFWorkbook wk = new XSSFWorkbook(fs);   //把xls文件中的数据写入wk中
                 int IntensityDataRow = 0;
                 int IntensityDataCol = 0;
-                for(int i=0;i<50;i++)//Initialize array.
+                for(int i=0;i<100;i++)//Initialize array.
                 {
-                    for(int j=0;j<50;j++)
+                    for(int j=0;j<100;j++)
                     {
                         IntensityData[i, j] = -1;
                     }
@@ -200,19 +212,25 @@ namespace ExcelFunctionTestNPOI
                     {
                         testarray.Append(IntensityData[i, j].ToString());
                         testarray.Append("_");
-                        Num[j] = IntensityData[i, j];
+                        //Num[j] = IntensityData[i, j];
                     }
                     else
                         continue;
                 }
-                int[] temp = InsValue(Num);
-                for(int k=0;k<temp.Length;k++)
-                {
-                    IntensityDataValueIns[i, k] = temp[k];
-                }
+                //int[] temp = InsValue(Num);
+                //for(int k=0;k<temp.Length;k++)
+                //{
+                //    IntensityDataValueIns[i, k] = temp[k];
+                //}
             }
 
             testarray.ToString();
+            //textBox1.Text += testarray;
+            //textBox1.Text += "\r\n";
+
+            //textBox1.Text += DisplayArray(IntensityData);
+            DisplayArray(IntensityData);
+            DisplayArray(InsValue(IntensityData));
             using (StreamWriter wr = new StreamWriter(new FileStream(@"D:/TestArray.txt", FileMode.Append)))  //把读取xls文件的数据写入myText.txt文件中
             {
                 wr.Write(testarray.ToString());
@@ -249,34 +267,56 @@ namespace ExcelFunctionTestNPOI
 
         }
         //将获取到的光强值，插成0.5度一测的表
-        public int[] InsValue(int[] array)
+        public int[,] InsValue(int[,] array)
         {
-            int arraylenth = 0;
-            for(int i=0;i<array.Length;i++)//获取该数组中有效数值（光强值，而非初始值“-1”）的个数。
+            for(int row=1;row<100;row++)
             {
-                if (array[i] != -1)
+                int arraylength = 0;
+                if(array[row,0]!=-1)
                 {
-                    arraylenth++;
+                    for (int i = 0; i < 100; i++)//获取该数组中有效数值（光强值，而非初始值“-1”）的个数。
+                    {
+                        if (array[row, i] != -1)
+                        {
+                            arraylength++;
+                        }
+                        else
+                            continue;
+                    }
+
+                    int[] temparray = new int[arraylength * 2 + 1];//存放插值后的数据，插值后的数据总数是原来的2倍+1。
+                                                                   //int[] temparray = new int[100];//存放插值后的数据，插值后的数据总数是原来的2倍+1。
+
+
+                    for (int i = 0; i < arraylength; i++)//保存数组temparray脚码为1,3,5...的数据
+                    {
+                        temparray[i * 2 + 1] = array[row, i];
+                    }
+                    for (int i = 1; i < arraylength; i++)//保存数组temparray脚码为2,4,6...的数据
+                    {
+                        temparray[i * 2] = (temparray[i * 2 - 1] + temparray[i * 2 + 1]) / 2;
+                    }
+                    if ((temparray[0] = temparray[1] - (temparray[2] - temparray[1])) > 0)//保存数组temparray脚码为0的数据
+                    {
+                        temparray[0] = temparray[1] - (temparray[2] - temparray[1]);
+                    }
+                    else
+                        temparray[0] = (int)(temparray[1] * 0.75);
+
+                    if ((temparray[arraylength * 2] = temparray[arraylength * 2 - 1] - (temparray[arraylength * 2 - 2] - temparray[arraylength * 2 - 1])) > 0)//保存数组temparray的最后一个数据
+                    {
+                        temparray[arraylength * 2] = temparray[arraylength * 2 - 1] - (temparray[arraylength * 2 - 2] - temparray[arraylength * 2 - 1]);
+                    }
+                    else
+                        temparray[arraylength * 2] = (int)(temparray[arraylength * 2 - 1] * 0.75);
+                    for (int i = 0; i < temparray.Length; i++)
+                    {
+                        array[row, i] = temparray[i];
+                    }
                 }
-                else
-                    break;
+                
             }
-            int[] temparray = new int[arraylenth*2+1];//存放插值后的数据，插值后的数据总数是原来的2倍+1。
-            for(int i=0;i<arraylenth;i++)//保存数组temparray脚码为1,3,5...的数据
-            {
-                temparray[i * 2+1] = array[i];
-            }
-            for(int i=1;i<arraylenth;i++)//保存数组temparray脚码为2,4,6...的数据
-            {
-                temparray[i * 2] = (temparray[i * 2 - 1] + temparray[i * 2 + 1]) / 2;
-            }
-            if ((temparray[0] = temparray[1] - (temparray[2] - temparray[1])) > 0)//保存数组temparray脚码为0的数据
-            {
-                temparray[0] = temparray[1] - (temparray[2] - temparray[1]);
-            }
-            else
-                temparray[0] = (int)(temparray[1] * 0.75);
-            return temparray;
+            return array;
         }
         //读取07版及以上Excel文件内容方法，并将读取到的内容存放在“myText.txt”中
         public void ReadExcel()
